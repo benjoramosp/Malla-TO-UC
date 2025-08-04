@@ -10,49 +10,46 @@ function guardarAprobados(aprobados) {
 
 // === Créditos ===
 const creditos = {};
-ramos.forEach(r => {
-  // Si no hay créditos, asumimos 10 por defecto
-  creditos[r.codigo] = r.creditos || 10;
-});
+for (const nombre in ramos) {
+  creditos[nombre] = ramos[nombre].creditos || 10; // default 10 si no existe
+}
 
 function calcularCreditosAprobados() {
   const aprobados = obtenerAprobados();
-  return aprobados.reduce((sum, codigo) => sum + (creditos[codigo] || 0), 0);
+  return aprobados.reduce((sum, nombre) => sum + (creditos[nombre] || 0), 0);
 }
 
 // === Lógica de desbloqueo ===
 function actualizarDesbloqueos() {
   const aprobados = obtenerAprobados();
-  const desbloqueados = new Set(aprobados); // todos los ramos aprobados ya están desbloqueados
+  const desbloqueados = new Set(aprobados);
   const totalCreditos = calcularCreditosAprobados();
 
-  // Recorrer todos los ramos
-  ramos.forEach(ramo => {
-    const elem = document.getElementById(ramo.codigo);
-    if (!elem) return;
+  for (const nombre in ramos) {
+    const ramo = ramos[nombre];
+    const elem = document.getElementById(nombre);
+    if (!elem) continue;
 
-    // Si ya está aprobado, siempre está desbloqueado
-    if (aprobados.includes(ramo.codigo)) {
-      elem.classList.remove('bloqueado');
-      return;
+    if (aprobados.includes(nombre)) {
+      elem.classList.remove("bloqueado");
+      continue;
     }
 
-    // Buscar si alguno de sus prerrequisitos lo abre
-    const requerimientos = ramos.filter(r => r.abre.includes(ramo.codigo)).map(r => r.codigo);
-    const cumple = requerimientos.every(req => aprobados.includes(req));
+    // Cumple si todos sus requisitos están en aprobados
+    const cumple = (ramo.requisitos || []).every(req => aprobados.includes(req));
 
     if (cumple) {
-      elem.classList.remove('bloqueado');
+      elem.classList.remove("bloqueado");
     } else {
-      elem.classList.add('bloqueado');
+      elem.classList.add("bloqueado");
     }
-  });
+  }
 }
 
 // === Aprobar o desaprobar un ramo ===
 function aprobar(e) {
   const ramo = e.currentTarget;
-  const codigo = ramo.id;
+  const nombre = ramo.id;
 
   if (ramo.classList.contains('bloqueado')) return;
 
@@ -60,9 +57,9 @@ function aprobar(e) {
 
   const aprobados = obtenerAprobados();
   if (ramo.classList.contains('aprobado')) {
-    if (!aprobados.includes(codigo)) aprobados.push(codigo);
+    if (!aprobados.includes(nombre)) aprobados.push(nombre);
   } else {
-    const idx = aprobados.indexOf(codigo);
+    const idx = aprobados.indexOf(nombre);
     if (idx > -1) aprobados.splice(idx, 1);
   }
 
@@ -74,12 +71,12 @@ function aprobar(e) {
 document.addEventListener("DOMContentLoaded", () => {
   const contenedor = document.getElementById("linea-tiempo");
 
-  // Agrupar por semestre
   const ramosPorSemestre = {};
-  ramos.forEach(r => {
-    if (!ramosPorSemestre[r.semestre]) ramosPorSemestre[r.semestre] = [];
-    ramosPorSemestre[r.semestre].push(r);
-  });
+  for (const nombre in ramos) {
+    const ramo = ramos[nombre];
+    if (!ramosPorSemestre[ramo.semestre]) ramosPorSemestre[ramo.semestre] = [];
+    ramosPorSemestre[ramo.semestre].push({ ...ramo, nombre });
+  }
 
   const semestres = Object.keys(ramosPorSemestre).sort((a, b) => a - b);
   semestres.forEach(semestre => {
@@ -93,15 +90,11 @@ document.addEventListener("DOMContentLoaded", () => {
     ramosPorSemestre[semestre].forEach(ramo => {
       const div = document.createElement("div");
       div.className = `ramo ${ramo.tipo}`;
-      div.id = ramo.codigo;
+      div.id = ramo.nombre;
 
       const tituloRamo = document.createElement("strong");
       tituloRamo.textContent = ramo.nombre;
       div.appendChild(tituloRamo);
-
-      const cod = document.createElement("small");
-      cod.textContent = ramo.codigo;
-      div.appendChild(cod);
 
       divSemestre.appendChild(div);
     });
@@ -109,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
     contenedor.appendChild(divSemestre);
   });
 
-  // Restaurar progreso y asignar clics
   const aprobados = obtenerAprobados();
   const todosRamos = document.querySelectorAll(".ramo");
 
